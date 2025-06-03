@@ -1,0 +1,2 @@
+# MongoDBHighAvailabilityVisualizer
+Visualize MongoDB High Availability simply
