@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB High Availability Visualizer</title>
+    <style>
+        /* --- Base and Layout --- */
+        :root {
+            --primary-green: #00684A;
+            --secondary-green: #00ED64;
+            --dark-text: #001E2B;
+            --page-background: #FFFFFF;
+            --failure-red: #FF0000;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--page-background);
+            color: var(--dark-text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: var(--dark-text);
+            font-weight: 600;
+        }
+
+        .controls {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .controls button {
+            padding: 10px 18px;
+            border: 1px solid var(--primary-green);
+            background-color: var(--page-background);
+            color: var(--primary-green);
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .controls button:hover,
+        .controls button.active {
+            background-color: var(--primary-green);
+            color: var(--page-background);
+        }
+
+        #visualization-container {
+            width: 400px;
+            height: 400px;
+            position: relative;
+            margin: 20px auto;
+        }
+
+        #status-text {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-green);
+            margin-top: 20px;
+            transition: color 0.3s ease;
+        }
+
+        footer {
+            position: absolute;
+            bottom: 20px;
+            text-align: center;
+            width: 100%;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        /* --- Node Specific Styling --- */
+        .node {
+            position: absolute;
+            width: 100px;
+            height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            /* Center the node on its calculated (x,y) coordinates */
+            transform: translate(-50%, -50%);
+        }
+
+        .node .icon-container {
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+
+        .node .icon-container svg {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .node .failure-x {
+            color: var(--failure-red);
+            font-weight: bold;
+            display: none; /* Hidden by default */
+            z-index: 2; /* Ensure it's on top */
+        }
+
+        .node.failed .db-icon {
+            opacity: 0.3;
+        }
+
+        .node.failed .failure-x {
+            display: block;
+        }
+        
+        .node .label {
+            margin-top: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .node .label.primary {
+            color: var(--primary-green);
+        }
+
+        .node .label.secondary {
+            color: var(--secondary-green);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>MongoDB High Availability Visualizer</h1>
+
+    <div class="controls">
+        <span>Choose nodes:</span>
+        <button id="btn-3" class="node-btn active">3 nodes</button>
+        <button id="btn-5" class="node-btn">5 nodes</button>
+        <button id="btn-7" class="node-btn">7 nodes</button>
+    </div>
+
+    <div id="visualization-container"></div>
+
+    <p id="status-text">Status: Primary Writeable</p>
+
+    <footer>Made by David</footer>
+
+    <script>
+        // --- DOM Elements & Constants ---
+        const vizContainer = document.getElementById('visualization-container');
+        const statusText = document.getElementById('status-text');
+        const nodeButtons = document.querySelectorAll('.node-btn');
+
+        const COLORS = {
+            PRIMARY: 'var(--primary-green)',
+            SECONDARY: 'var(--secondary-green)',
+            FAILURE: 'var(--failure-red)',
+        };
+
+        // --- SVG Templates for Icons ---
+        // A "hand-drawn" database icon
+        const dbIconSVG = `
+            <svg class="db-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 50,5 C 75,5 90,20 90,30 S 75,55 50,55 S 10,55 10,45 S 25,5 50,5 Z" fill="none" stroke="${COLORS.SECONDARY}" stroke-width="3"/>
+                <path d="M 10,45 C 10,55 25,70 50,70 S 90,55 90,45" fill="none" stroke="${COLORS.SECONDARY}" stroke-width="3"/>
+                <path d="M 10,65 C 10,75 25,90 50,90 S 90,75 90,65" fill="none" stroke="${COLORS.SECONDARY}" stroke-width="3"/>
+            </svg>
+        `;
+        // A red "X" icon for failures
+        const failureXSVG = `
+            <svg class="failure-x" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <line x1="15" y1="15" x2="85" y2="85" stroke="${COLORS.FAILURE}" stroke-width="8" stroke-linecap="round"/>
+                <line x1="85" y1="15" x2="15" y2="85" stroke="${COLORS.FAILURE}" stroke-width="8" stroke-linecap="round"/>
+            </svg>
+        `;
+
+        // --- Application State ---
+        let appState = {
+            totalNodes: 0,
+            primaryIndex: 0,
+            failedIndices: new Set(),
+        };
+
+        // --- Core Logic ---
+
+        /**
+         * Clears and generates the node visualization in a circle.
+         * @param {number} numNodes The number of nodes to create (3, 5, or 7).
+         */
+        function generateNodes(numNodes) {
+            // 1. Reset state and UI
+            vizContainer.innerHTML = '';
+            appState = {
+                totalNodes: numNodes,
+                primaryIndex: 0, // Node at the top is the default primary
+                failedIndices: new Set(),
+            };
+            
+            // 2. Define circle layout parameters
+            const radius = 150;
+            const containerSize = 400;
+            const centerX = containerSize / 2;
+            const centerY = containerSize / 2;
+            // Start angle at -90 degrees (12 o'clock position)
+            const angleOffset = -Math.PI / 2;
+
+            // 3. Create and place each node
+            for (let i = 0; i < numNodes; i++) {
+                const isPrimary = (i === appState.primaryIndex);
+                const angle = (i / numNodes) * 2 * Math.PI + angleOffset;
+
+                // Calculate position on the circle
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+
+                // Create the node element
+                const nodeEl = document.createElement('div');
+                nodeEl.className = 'node';
+                nodeEl.style.left = `${x}px`;
+                nodeEl.style.top = `${y}px`;
+                nodeEl.dataset.id = i;
+
+                // Add icons and label
+                nodeEl.innerHTML = `
+                    <div class="icon-container">
+                        ${dbIconSVG}
+                        ${failureXSVG}
+                    </div>
+                    <p class="label ${isPrimary ? 'primary' : 'secondary'}">
+                        ${isPrimary ? 'Primary' : 'Secondary'}
+                    </p>
+                `;
+                
+                // Add click listener
+                nodeEl.addEventListener('click', handleNodeClick);
+
+                vizContainer.appendChild(nodeEl);
+            }
+            
+            // 4. Update UI elements
+            updateButtonStyles(numNodes);
+            updateStatus();
+        }
+
+        /**
+         * Handles the click event on a node, toggling its failed state.
+         * @param {MouseEvent} event The click event.
+         */
+        function handleNodeClick(event) {
+            const nodeEl = event.currentTarget;
+            const nodeId = parseInt(nodeEl.dataset.id, 10);
+
+            // Toggle failed state
+            if (appState.failedIndices.has(nodeId)) {
+                appState.failedIndices.delete(nodeId);
+                nodeEl.classList.remove('failed');
+            } else {
+                appState.failedIndices.add(nodeId);
+                nodeEl.classList.add('failed');
+            }
+
+            // If the primary node just failed, elect a new one
+            if (nodeId === appState.primaryIndex && appState.failedIndices.has(nodeId)) {
+                electNewPrimary();
+            }
+            
+            updateStatus();
+        }
+
+        /**
+         * Finds the next available secondary and promotes it to primary.
+         */
+        function electNewPrimary() {
+            // Start searching from the node to the right of the failed primary
+            for (let i = 1; i < appState.totalNodes; i++) {
+                const potentialNewPrimaryIndex = (appState.primaryIndex + i) % appState.totalNodes;
+
+                // If this node is not failed, promote it
+                if (!appState.failedIndices.has(potentialNewPrimaryIndex)) {
+                    updatePrimaryNode(potentialNewPrimaryIndex);
+                    return; // Exit after successful promotion
+                }
+            }
+            
+            // If no nodes are available, set primary to -1 (no primary)
+            updatePrimaryNode(-1);
+        }
+        
+        /**
+         * Updates the DOM and state to reflect a new primary.
+         * @param {number} newPrimaryIndex The index of the new primary node.
+         */
+        function updatePrimaryNode(newPrimaryIndex) {
+            // Demote the old primary if it exists
+            if (appState.primaryIndex !== -1) {
+                const oldPrimaryNode = vizContainer.querySelector(`.node[data-id='${appState.primaryIndex}']`);
+                if(oldPrimaryNode) {
+                    const oldLabel = oldPrimaryNode.querySelector('.label');
+                    oldLabel.textContent = 'Secondary';
+                    oldLabel.classList.remove('primary');
+                    oldLabel.classList.add('secondary');
+                }
+            }
+
+            // Update state
+            appState.primaryIndex = newPrimaryIndex;
+
+            // Promote the new primary if one was found
+            if (newPrimaryIndex !== -1) {
+                 const newPrimaryNode = vizContainer.querySelector(`.node[data-id='${newPrimaryIndex}']`);
+                 const newLabel = newPrimaryNode.querySelector('.label');
+                 newLabel.textContent = 'Primary';
+                 newLabel.classList.remove('secondary');
+                 newLabel.classList.add('primary');
+            }
+        }
+
+
+        /**
+         * Updates the status text based on cluster quorum.
+         */
+        function updateStatus() {
+            const failedCount = appState.failedIndices.size;
+            // Majority is defined as floor(N/2) + 1. Cluster is read-only if available nodes < majority.
+            // This is equivalent to failed nodes >= N - (floor(N/2)+1) + 1, which simplifies to failed nodes >= ceil(N/2)
+            // Or more simply, when the number of failed nodes is equal to or greater than the majority.
+            const majority = Math.floor(appState.totalNodes / 2) + 1;
+
+            if (failedCount >= majority || appState.primaryIndex === -1) {
+                statusText.textContent = 'Status: Read-Only';
+                statusText.style.color = COLORS.FAILURE;
+            } else {
+                statusText.textContent = 'Status: Primary Writeable';
+                statusText.style.color = COLORS.PRIMARY;
+            }
+        }
+        
+        /**
+         * Updates the visual style of the node selection buttons.
+         * @param {number} activeCount The number corresponding to the active button.
+         */
+        function updateButtonStyles(activeCount) {
+             nodeButtons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.id === `btn-${activeCount}`) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+
+        // --- Event Listeners & Initialization ---
+        
+        nodeButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const count = parseInt(e.target.id.split('-')[1], 10);
+                generateNodes(count);
+            });
+        });
+        
+        // Initial load with 3 nodes
+        window.addEventListener('load', () => generateNodes(3));
+
+    </script>
+</body>
+</html>
