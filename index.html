@@ -15,6 +15,16 @@
         <button id="btn-3" class="node-btn active">3 nodes</button>
         <button id="btn-5" class="node-btn">5 nodes</button>
         <button id="btn-7" class="node-btn">7 nodes</button>
+        <span style="margin-left:2em;">Deployment:</span>
+        <button id="single-region-btn" class="region-mode-btn active">Single Region</button>
+        <button id="multi-region-btn" class="region-mode-btn">Multi-Region</button>
+    </div>
+
+    <div id="region-toggles" style="display:none; margin: 1em 0;">
+        <span>Regions:</span>
+        <button class="region-toggle" data-region="1">Region 1: Available</button>
+        <button class="region-toggle" data-region="2">Region 2: Available</button>
+        <button class="region-toggle" data-region="3">Region 3: Available</button>
     </div>
 
     <div id="visualization-container"></div>
@@ -40,6 +50,9 @@
         const vizContainer = document.getElementById('visualization-container');
         const statusText = document.getElementById('status-text');
         const nodeButtons = document.querySelectorAll('.node-btn');
+        const regionModeBtns = document.querySelectorAll('.region-mode-btn');
+        const regionToggles = document.getElementById('region-toggles');
+        const regionToggleBtns = regionToggles.querySelectorAll('.region-toggle');
 
         const COLORS = {
             PRIMARY: 'var(--primary-green)',
@@ -61,9 +74,27 @@
             totalNodes: 0,
             primaryIndex: 0,
             failedIndices: new Set(),
+            regionMode: 'single', // 'single' or 'multi'
+            nodeRegions: [], // Array of region numbers for each node
+            regionStatus: {1: true, 2: true, 3: true}, // true = available, false = outage
         };
 
-        // --- Core Logic ---
+        /**
+         * Assigns nodes to regions based on node count and multi-region rules.
+         * @param {number} numNodes
+         * @returns {number[]} Array of region numbers for each node (1-based)
+         */
+        function assignRegions(numNodes) {
+            if (appState.regionMode === 'single') {
+                return Array(numNodes).fill(1);
+            }
+            // Multi-region distribution
+            if (numNodes === 3) return [1,2,3];
+            if (numNodes === 5) return [1,1,2,2,3];
+            if (numNodes === 7) return [1,1,1,2,2,2,3];
+            // fallback: single region
+            return Array(numNodes).fill(1);
+        }
 
         /**
          * Clears and generates the node visualization in a circle.
@@ -72,12 +103,25 @@
         function generateNodes(numNodes) {
             // 1. Reset state and UI
             vizContainer.innerHTML = '';
-            appState = {
-                totalNodes: numNodes,
-                primaryIndex: 0, // Node at the top is the default primary
-                failedIndices: new Set(),
-            };
-            
+            appState.totalNodes = numNodes;
+            appState.primaryIndex = 0;
+            appState.failedIndices = new Set();
+            appState.nodeRegions = assignRegions(numNodes);
+
+            // Reset region status if switching to single region
+            if (appState.regionMode === 'single') {
+                appState.regionStatus = {1: true, 2: true, 3: true};
+                regionToggles.style.display = 'none';
+            } else {
+                regionToggles.style.display = '';
+                // Reset region toggles to available
+                appState.regionStatus = {1: true, 2: true, 3: true};
+                regionToggleBtns.forEach(btn => {
+                    btn.textContent = `Region ${btn.dataset.region}: Available`;
+                    btn.classList.remove('outage');
+                });
+            }
+
             // 2. Define circle layout parameters
             const radius = 150;
             const containerSize = 400;
@@ -90,17 +134,15 @@
             for (let i = 0; i < numNodes; i++) {
                 const isPrimary = (i === appState.primaryIndex);
                 const angle = (i / numNodes) * 2 * Math.PI + angleOffset;
-
-                // Calculate position on the circle
                 const x = centerX + radius * Math.cos(angle);
                 const y = centerY + radius * Math.sin(angle);
 
-                // Create the node element
                 const nodeEl = document.createElement('div');
                 nodeEl.className = 'node';
                 nodeEl.style.left = `${x}px`;
                 nodeEl.style.top = `${y}px`;
                 nodeEl.dataset.id = i;
+                nodeEl.dataset.region = appState.nodeRegions[i];
 
                 // Add icons and label
                 nodeEl.innerHTML = `
@@ -111,16 +153,18 @@
                     <p class="label ${isPrimary ? 'primary' : 'secondary'}">
                         ${isPrimary ? 'Primary' : 'Secondary'}
                     </p>
+                    ${appState.regionMode === 'multi' ? `<span class="region-label">Region ${appState.nodeRegions[i]}</span>` : ''}
                 `;
-                
+
                 // Add click listener
                 nodeEl.addEventListener('click', handleNodeClick);
 
                 vizContainer.appendChild(nodeEl);
             }
-            
+
             // 4. Update UI elements
             updateButtonStyles(numNodes);
+            updateRegionModeStyles();
             updateStatus();
         }
 
@@ -131,6 +175,12 @@
         function handleNodeClick(event) {
             const nodeEl = event.currentTarget;
             const nodeId = parseInt(nodeEl.dataset.id, 10);
+
+            // If region is in outage, ignore manual toggle
+            if (appState.regionMode === 'multi') {
+                const region = appState.nodeRegions[nodeId];
+                if (!appState.regionStatus[region]) return;
+            }
 
             // Toggle failed state
             if (appState.failedIndices.has(nodeId)) {
@@ -145,8 +195,66 @@
             if (nodeId === appState.primaryIndex && appState.failedIndices.has(nodeId)) {
                 electNewPrimary();
             }
-            
+
             updateStatus();
+        }
+
+        /**
+         * Handles region outage toggle.
+         */
+        function handleRegionToggle(event) {
+            const btn = event.currentTarget;
+            const region = parseInt(btn.dataset.region, 10);
+            const isAvailable = appState.regionStatus[region];
+
+            // Toggle region status
+            appState.regionStatus[region] = !isAvailable;
+
+            // Update button UI
+            if (appState.regionStatus[region]) {
+                btn.textContent = `Region ${region}: Available`;
+                btn.classList.remove('outage');
+            } else {
+                btn.textContent = `Region ${region}: Outage`;
+                btn.classList.add('outage');
+            }
+
+            // Update all nodes in this region
+            for (let i = 0; i < appState.totalNodes; i++) {
+                if (appState.nodeRegions[i] === region) {
+                    const nodeEl = vizContainer.querySelector(`.node[data-id='${i}']`);
+                    if (!appState.regionStatus[region]) {
+                        // Outage: mark as failed
+                        appState.failedIndices.add(i);
+                        nodeEl.classList.add('failed');
+                    } else {
+                        // Available: unmark as failed (unless user manually failed it)
+                        if (nodeEl.classList.contains('failed')) {
+                            appState.failedIndices.delete(i);
+                            nodeEl.classList.remove('failed');
+                        }
+                    }
+                }
+            }
+
+            // If primary is in outage, elect new primary
+            if (!appState.regionStatus[appState.nodeRegions[appState.primaryIndex]]) {
+                electNewPrimary();
+            }
+
+            updateStatus();
+        }
+
+        /**
+         * Handles region mode toggle (single/multi).
+         */
+        function handleRegionModeToggle(event) {
+            const btn = event.currentTarget;
+            const mode = btn.id === 'multi-region-btn' ? 'multi' : 'single';
+            if (appState.regionMode !== mode) {
+                appState.regionMode = mode;
+                generateNodes(appState.totalNodes);
+            }
         }
 
         /**
@@ -230,16 +338,38 @@
             });
         }
 
+        /**
+         * Updates the visual style of the region mode buttons.
+         */
+        function updateRegionModeStyles() {
+            regionModeBtns.forEach(btn => {
+                btn.classList.remove('active');
+                if (
+                    (btn.id === 'single-region-btn' && appState.regionMode === 'single') ||
+                    (btn.id === 'multi-region-btn' && appState.regionMode === 'multi')
+                ) {
+                    btn.classList.add('active');
+                }
+            });
+        }
 
         // --- Event Listeners & Initialization ---
-        
+
         nodeButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 const count = parseInt(e.target.id.split('-')[1], 10);
                 generateNodes(count);
             });
         });
-        
+
+        regionModeBtns.forEach(btn => {
+            btn.addEventListener('click', handleRegionModeToggle);
+        });
+
+        regionToggleBtns.forEach(btn => {
+            btn.addEventListener('click', handleRegionToggle);
+        });
+
         // Initial load with 3 nodes
         window.addEventListener('load', () => generateNodes(3));
 
