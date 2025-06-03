@@ -18,6 +18,7 @@
         <span style="margin-left:2em;">Deployment:</span>
         <button id="single-region-btn" class="region-mode-btn active">Single Region</button>
         <button id="multi-region-btn" class="region-mode-btn">Multi-Region</button>
+        <button id="reset-btn" style="margin-left:2em;">Reset</button>
     </div>
 
     <div id="region-toggles" style="display:none; margin: 1em 0;">
@@ -53,6 +54,7 @@
         const regionModeBtns = document.querySelectorAll('.region-mode-btn');
         const regionToggles = document.getElementById('region-toggles');
         const regionToggleBtns = regionToggles.querySelectorAll('.region-toggle');
+        const resetBtn = document.getElementById('reset-btn');
 
         const COLORS = {
             PRIMARY: 'var(--primary-green)',
@@ -311,12 +313,13 @@
          */
         function updateStatus() {
             const failedCount = appState.failedIndices.size;
-            // Majority is defined as floor(N/2) + 1. Cluster is read-only if available nodes < majority.
-            // This is equivalent to failed nodes >= N - (floor(N/2)+1) + 1, which simplifies to failed nodes >= ceil(N/2)
-            // Or more simply, when the number of failed nodes is equal to or greater than the majority.
-            const majority = Math.floor(appState.totalNodes / 2) + 1;
+            const total = appState.totalNodes;
+            const majority = Math.floor(total / 2) + 1;
 
-            if (failedCount >= majority || appState.primaryIndex === -1) {
+            if (failedCount === total) {
+                statusText.textContent = 'Status: Cluster Offline';
+                statusText.style.color = COLORS.FAILURE;
+            } else if (failedCount >= majority || appState.primaryIndex === -1) {
                 statusText.textContent = 'Status: Read-Only';
                 statusText.style.color = COLORS.FAILURE;
             } else {
@@ -353,6 +356,15 @@
             });
         }
 
+        /**
+         * Resets the app to its original state: 3 nodes, single region, all available.
+         */
+        function resetApp() {
+            appState.regionMode = 'single';
+            updateRegionModeStyles();
+            generateNodes(3);
+        }
+
         // --- Event Listeners & Initialization ---
 
         nodeButtons.forEach(button => {
@@ -369,6 +381,8 @@
         regionToggleBtns.forEach(btn => {
             btn.addEventListener('click', handleRegionToggle);
         });
+
+        resetBtn.addEventListener('click', resetApp);
 
         // Initial load with 3 nodes
         window.addEventListener('load', () => generateNodes(3));
