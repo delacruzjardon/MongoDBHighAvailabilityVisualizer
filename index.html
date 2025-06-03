@@ -48,14 +48,6 @@
         };
 
         // --- SVG Templates for Icons ---
-        // A "hand-drawn" database icon
-        const dbIconSVG = `
-            <svg class="db-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <path d="M 50,5 C 75,5 90,20 90,30 S 75,55 50,55 S 10,55 10,45 S 25,5 50,5 Z" fill="none" stroke="${COLORS.SECONDARY}" stroke-width="3"/>
-                <path d="M 10,45 C 10,55 25,70 50,70 S 90,55 90,45" fill="none" stroke="${COLORS.SECONDARY}" stroke-width="3"/>
-                <path d="M 10,65 C 10,75 25,90 50,90 S 90,75 90,65" fill="none" stroke="${COLORS.SECONDARY}" stroke-width="3"/>
-            </svg>
-        `;
         // A red "X" icon for failures
         const failureXSVG = `
             <svg class="failure-x" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -113,7 +105,7 @@
                 // Add icons and label
                 nodeEl.innerHTML = `
                     <div class="icon-container">
-                        ${dbIconSVG}
+                        <img src="img/mdb-database.png" alt="MongoDB Database Icon" class="db-icon" />
                         ${failureXSVG}
                     </div>
                     <p class="label ${isPrimary ? 'primary' : 'secondary'}">

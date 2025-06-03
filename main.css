@@ -150,3 +150,10 @@ footer svg {
 .node .label.secondary {
     color: var(--secondary-green);
 }
+
+.db-icon {
+    width: 75px;
+    height: 75px;
+    display: block;
+    margin: 0 auto;
+}
