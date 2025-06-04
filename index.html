@@ -336,7 +336,7 @@
             } else if (failedCount >= majority || appState.primaryIndex === -1) {
                 statusText.innerHTML = 'Status: <span style="color:' + COLORS.FAILURE + '">Read-Only ⚠️</span>';
             } else {
-                statusText.innerHTML = 'Status: <span style="color:' + COLORS.PRIMARY + '">Primary Writeable</span>';
+                statusText.innerHTML = 'Status: <span style="color:' + COLORS.PRIMARY + '">Primary Accepting Writes</span>';
             }
         }
         
