@@ -198,6 +198,11 @@
                 electNewPrimary();
             }
 
+            // If there is no primary and this node just became available, elect a new primary
+            if (appState.primaryIndex === -1 && !appState.failedIndices.has(nodeId)) {
+                electNewPrimary();
+            }
+
             updateStatus();
         }
 
@@ -242,6 +247,16 @@
             // If primary is in outage, elect new primary
             if (!appState.regionStatus[appState.nodeRegions[appState.primaryIndex]]) {
                 electNewPrimary();
+            }
+
+            // If there is no primary and at least one node is now available, elect a new primary
+            if (appState.primaryIndex === -1) {
+                for (let i = 0; i < appState.totalNodes; i++) {
+                    if (!appState.failedIndices.has(i)) {
+                        electNewPrimary();
+                        break;
+                    }
+                }
             }
 
             updateStatus();
