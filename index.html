@@ -496,12 +496,11 @@
         }
 
         /**
-         * Resets the app to its original state: 3 nodes, single region, all available.
+         * Resets the app to its original state: all nodes available, current node count and deployment mode.
          */
         function resetApp() {
-            appState.regionMode = 'single';
-            updateRegionModeStyles();
-            generateNodes(3);
+            // Do not change appState.regionMode or node count, just regenerate nodes with current settings
+            generateNodes(appState.totalNodes);
         }
 
         // --- Event Listeners & Initialization ---
