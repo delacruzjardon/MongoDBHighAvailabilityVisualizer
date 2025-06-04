@@ -22,15 +22,15 @@
     </div>
 
     <div id="region-toggles" style="display:none; margin: 1em 0;">
-        <span>Regions:</span>
+        <span>Choose Region Outage:</span>
         <button class="region-toggle" data-region="1">Region 1: Available</button>
         <button class="region-toggle" data-region="2">Region 2: Available</button>
         <button class="region-toggle" data-region="3">Region 3: Available</button>
     </div>
 
-    <div id="visualization-container"></div>
-
-    <p id="status-text">Status: Primary Writeable</p>
+    <div id="visualization-container" style="margin-top: 2em;"></div>
+    
+    <p id="status-text">Status: Primary Accepting Writes</p>
 
     <footer>
     <span>Made by David Hiltenbrand (with the help of ✨AI✨)</span>
@@ -99,7 +99,7 @@
         }
 
         /**
-         * Clears and generates the node visualization in a circle.
+         * Clears and generates the node visualization in a circle or grid.
          * @param {number} numNodes The number of nodes to create (3, 5, or 7).
          */
         function generateNodes(numNodes) {
@@ -124,44 +124,123 @@
                 });
             }
 
-            // 2. Define circle layout parameters
-            const radius = 150;
-            const containerSize = 400;
-            const centerX = containerSize / 2;
-            const centerY = containerSize / 2;
-            // Start angle at -90 degrees (12 o'clock position)
-            const angleOffset = -Math.PI / 2;
+            if (appState.regionMode === 'single') {
+                // --- Circular layout for single region ---
+                // 2. Define circle layout parameters
+                const radius = 150;
+                const containerSize = 400;
+                const centerX = containerSize / 2;
+                const centerY = containerSize / 2;
+                // Start angle at -90 degrees (12 o'clock position)
+                const angleOffset = -Math.PI / 2;
 
-            // 3. Create and place each node
-            for (let i = 0; i < numNodes; i++) {
-                const isPrimary = (i === appState.primaryIndex);
-                const angle = (i / numNodes) * 2 * Math.PI + angleOffset;
-                const x = centerX + radius * Math.cos(angle);
-                const y = centerY + radius * Math.sin(angle);
+                // 3. Create and place each node
+                for (let i = 0; i < numNodes; i++) {
+                    const isPrimary = (i === appState.primaryIndex);
+                    const angle = (i / numNodes) * 2 * Math.PI + angleOffset;
+                    const x = centerX + radius * Math.cos(angle);
+                    const y = centerY + radius * Math.sin(angle);
 
-                const nodeEl = document.createElement('div');
-                nodeEl.className = 'node';
-                nodeEl.style.left = `${x}px`;
-                nodeEl.style.top = `${y}px`;
-                nodeEl.dataset.id = i;
-                nodeEl.dataset.region = appState.nodeRegions[i];
+                    const nodeEl = document.createElement('div');
+                    nodeEl.className = 'node';
+                    nodeEl.style.left = `${x}px`;
+                    nodeEl.style.top = `${y}px`;
+                    nodeEl.dataset.id = i;
+                    nodeEl.dataset.region = appState.nodeRegions[i];
 
-                // Add icons and label
-                nodeEl.innerHTML = `
-                    <div class="icon-container">
-                        <img src="img/mdb-database.png" alt="MongoDB Database Icon" class="db-icon" />
-                        ${failureXSVG}
-                    </div>
-                    <p class="label ${isPrimary ? 'primary' : 'secondary'}">
-                        ${isPrimary ? 'Primary' : 'Secondary'}
-                    </p>
-                    ${appState.regionMode === 'multi' ? `<span class="region-label">Region ${appState.nodeRegions[i]}</span>` : ''}
-                `;
+                    // Add icons and label
+                    nodeEl.innerHTML = `
+                        <div class="icon-container">
+                            <img src="img/mdb-database.png" alt="MongoDB Database Icon" class="db-icon" />
+                            ${failureXSVG}
+                        </div>
+                        <p class="label ${isPrimary ? 'primary' : 'secondary'}">
+                            ${isPrimary ? 'Primary' : 'Secondary'}
+                        </p>
+                        ${appState.regionMode === 'multi' ? `<span class="region-label">Region ${appState.nodeRegions[i]}</span>` : ''}
+                    `;
 
-                // Add click listener
-                nodeEl.addEventListener('click', handleNodeClick);
+                    // Add click listener
+                    nodeEl.addEventListener('click', handleNodeClick);
 
-                vizContainer.appendChild(nodeEl);
+                    vizContainer.appendChild(nodeEl);
+                }
+            } else {
+                // --- Square grid layout for multi-region ---
+                // Group nodes by region
+                const regionNodes = {1: [], 2: [], 3: []};
+                for (let i = 0; i < numNodes; i++) {
+                    regionNodes[appState.nodeRegions[i]].push(i);
+                }
+
+                // Style container for grid
+                vizContainer.style.display = 'flex';
+                vizContainer.style.flexDirection = 'column';
+                vizContainer.style.alignItems = 'center';
+                vizContainer.style.justifyContent = 'center';
+                vizContainer.style.width = '100%';
+                vizContainer.style.height = 'auto';
+                vizContainer.style.position = 'relative';
+
+                // Helper: create a region row
+                function createRegionRow(region, nodeIndices) {
+                    const row = document.createElement('div');
+                    row.className = 'region-row';
+                    row.style.display = 'flex';
+                    row.style.justifyContent = 'center';
+                    row.style.alignItems = 'center';
+                    row.style.margin = '18px 0';
+                    row.style.width = '100%';
+
+                    // Add region label (left side)
+                    const regionLabel = document.createElement('span');
+                    regionLabel.textContent = `Region ${region}`;
+                    regionLabel.className = 'region-row-label';
+                    regionLabel.style.fontWeight = 'bold';
+                    regionLabel.style.marginRight = '1.5em';
+                    regionLabel.style.minWidth = '80px';
+                    regionLabel.style.textAlign = 'right';
+                    row.appendChild(regionLabel);
+
+                    // Add nodes for this region
+                    nodeIndices.forEach(i => {
+                        const isPrimary = (i === appState.primaryIndex);
+                        const nodeEl = document.createElement('div');
+                        nodeEl.className = 'node';
+                        nodeEl.style.position = 'relative';
+                        nodeEl.style.margin = '0 24px';
+                        nodeEl.dataset.id = i;
+                        nodeEl.dataset.region = region;
+
+                        nodeEl.innerHTML = `
+                            <div class="icon-container">
+                                <img src="img/mdb-database.png" alt="MongoDB Database Icon" class="db-icon" />
+                                ${failureXSVG}
+                            </div>
+                            <p class="label ${isPrimary ? 'primary' : 'secondary'}">
+                                ${isPrimary ? 'Primary' : 'Secondary'}
+                            </p>
+                            <span class="region-label">Region ${region}</span>
+                        `;
+
+                        nodeEl.addEventListener('click', handleNodeClick);
+                        row.appendChild(nodeEl);
+                    });
+
+                    // Spacer to balance label on right
+                    const rightSpacer = document.createElement('span');
+                    rightSpacer.style.minWidth = '80px';
+                    rightSpacer.style.marginLeft = '1.5em';
+                    row.appendChild(rightSpacer);
+
+                    return row;
+                }
+
+                // Render region rows in order: 1 (top), 2 (middle), 3 (bottom)
+                [1,2,3].forEach((region, idx) => {
+                    const row = createRegionRow(region, regionNodes[region]);
+                    vizContainer.appendChild(row);
+                });
             }
 
             // 4. Update UI elements
