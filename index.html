@@ -126,6 +126,14 @@
 
             if (appState.regionMode === 'single') {
                 // --- Circular layout for single region ---
+                // Reset container styles to default for single region
+                vizContainer.style.display = '';
+                vizContainer.style.flexDirection = '';
+                vizContainer.style.alignItems = '';
+                vizContainer.style.justifyContent = '';
+                vizContainer.style.width = '';
+                vizContainer.style.height = '';
+                vizContainer.style.position = '';
                 // 2. Define circle layout parameters
                 const radius = 150;
                 const containerSize = 400;
@@ -338,6 +346,29 @@
                 }
             }
 
+            // --- NEW LOGIC: If a higher-priority region just became available, move primary there ---
+            if (appState.regionMode === 'multi' && appState.regionStatus[region]) {
+                // If region 1 became available, always move primary to region 1 if possible
+                // If region 2 became available and no region 1 nodes are available, move to region 2, etc.
+                for (let priorityRegion = 1; priorityRegion <= 3; priorityRegion++) {
+                    if (appState.regionStatus[priorityRegion]) {
+                        for (let i = 0; i < appState.totalNodes; i++) {
+                            if (
+                                appState.nodeRegions[i] === priorityRegion &&
+                                !appState.failedIndices.has(i)
+                            ) {
+                                if (appState.primaryIndex !== i) {
+                                    updatePrimaryNode(i);
+                                }
+                                // Only move to the highest-priority available region
+                                updateStatus();
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
             updateStatus();
         }
 
@@ -355,21 +386,38 @@
 
         /**
          * Finds the next available secondary and promotes it to primary.
+         * In multi-region mode, always prefer a Region 1 node if available,
+         * then Region 2, then Region 3.
          */
         function electNewPrimary() {
-            // Start searching from the node to the right of the failed primary
-            for (let i = 1; i < appState.totalNodes; i++) {
-                const potentialNewPrimaryIndex = (appState.primaryIndex + i) % appState.totalNodes;
-
-                // If this node is not failed, promote it
-                if (!appState.failedIndices.has(potentialNewPrimaryIndex)) {
-                    updatePrimaryNode(potentialNewPrimaryIndex);
-                    return; // Exit after successful promotion
+            if (appState.regionMode === 'multi') {
+                // Try regions in priority order: 1, then 2, then 3
+                for (let region = 1; region <= 3; region++) {
+                    for (let i = 0; i < appState.totalNodes; i++) {
+                        if (
+                            appState.nodeRegions[i] === region &&
+                            !appState.failedIndices.has(i)
+                        ) {
+                            updatePrimaryNode(i);
+                            return;
+                        }
+                    }
                 }
+                // No available nodes
+                updatePrimaryNode(-1);
+            } else {
+                // Start searching from the node to the right of the failed primary
+                for (let i = 1; i < appState.totalNodes; i++) {
+                    const potentialNewPrimaryIndex = (appState.primaryIndex + i) % appState.totalNodes;
+
+                    // If this node is not failed, promote it
+                    if (!appState.failedIndices.has(potentialNewPrimaryIndex)) {
+                        updatePrimaryNode(potentialNewPrimaryIndex);
+                        return; // Exit after successful promotion
+                    }
+                }
+                updatePrimaryNode(-1);
             }
-            
-            // If no nodes are available, set primary to -1 (no primary)
-            updatePrimaryNode(-1);
         }
         
         /**
