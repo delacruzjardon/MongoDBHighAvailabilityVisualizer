@@ -332,14 +332,11 @@
             const majority = Math.floor(total / 2) + 1;
 
             if (failedCount === total) {
-                statusText.textContent = 'Status: Cluster Offline';
-                statusText.style.color = COLORS.FAILURE;
+                statusText.innerHTML = 'Status: <span style="color:' + COLORS.FAILURE + '">Cluster Offline ❌</span>';
             } else if (failedCount >= majority || appState.primaryIndex === -1) {
-                statusText.textContent = 'Status: Read-Only';
-                statusText.style.color = COLORS.FAILURE;
+                statusText.innerHTML = 'Status: <span style="color:' + COLORS.FAILURE + '">Read-Only ⚠️</span>';
             } else {
-                statusText.textContent = 'Status: Primary Writeable';
-                statusText.style.color = COLORS.PRIMARY;
+                statusText.innerHTML = 'Status: <span style="color:' + COLORS.PRIMARY + '">Primary Writeable</span>';
             }
         }
         
