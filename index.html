@@ -197,7 +197,8 @@
                     row.style.display = 'flex';
                     row.style.justifyContent = 'center';
                     row.style.alignItems = 'center';
-                    row.style.margin = '18px 0';
+                    row.style.height = '120px'; /* Fixed height to match node height */
+                    row.style.margin = '0';     /* Remove vertical margin */
                     row.style.width = '100%';
 
                     // Add region label (left side)
@@ -243,11 +244,30 @@
                     return row;
                 }
 
-                // Render region rows in order: 1 (top), 2 (middle), 3 (bottom)
-                [1,2,3].forEach((region, idx) => {
-                    const row = createRegionRow(region, regionNodes[region]);
-                    vizContainer.appendChild(row);
-                });
+                // --- Render 5 rows: region, divider, region, divider, region ---
+                // Row 1: Region 1
+                const row1 = createRegionRow(1, regionNodes[1]);
+                vizContainer.appendChild(row1);
+
+                // Row 2: Dotted divider
+                const divider1 = document.createElement('div');
+                divider1.className = 'dotted-divider-row';
+                divider1.innerHTML = '<div class="dotted-divider"></div>';
+                vizContainer.appendChild(divider1);
+
+                // Row 3: Region 2
+                const row2 = createRegionRow(2, regionNodes[2]);
+                vizContainer.appendChild(row2);
+
+                // Row 4: Dotted divider
+                const divider2 = document.createElement('div');
+                divider2.className = 'dotted-divider-row';
+                divider2.innerHTML = '<div class="dotted-divider"></div>';
+                vizContainer.appendChild(divider2);
+
+                // Row 5: Region 3
+                const row3 = createRegionRow(3, regionNodes[3]);
+                vizContainer.appendChild(row3);
             }
 
             // 4. Update UI elements

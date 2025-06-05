@@ -111,6 +111,11 @@ footer svg {
     position: relative;
     width: 80px;
     height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Add margin-top to push icon down if needed */
+    margin-top: 70px;
 }
 
 .node .icon-container svg {
@@ -156,4 +161,29 @@ footer svg {
     height: 75px;
     display: block;
     margin: 0 auto;
+    /* Remove any margin-top if present */
+}
+
+.dotted-divider-row {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 32px; /* Use divider rows for vertical spacing */
+}
+
+.dotted-divider {
+    border-top: 2px dotted #bbb;
+    width: 80%;
+    height: 0;
+}
+
+.region-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 120px; /* Fixed height to match node height */
+    margin: 0;     /* Remove vertical margin */
+    width: 100%;
+    overflow: hidden;
 }
