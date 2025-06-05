@@ -93,7 +93,7 @@
             // Multi-region distribution
             if (numNodes === 3) return [1,2,3];
             if (numNodes === 5) return [1,1,2,2,3];
-            if (numNodes === 7) return [1,1,1,2,2,2,3];
+            if (numNodes === 7) return [1,1,1,2,2,3,3]; // 3/2/2 distribution
             // fallback: single region
             return Array(numNodes).fill(1);
         }
