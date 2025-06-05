@@ -290,6 +290,15 @@
                 electNewPrimary();
             }
 
+            // --- NEW LOGIC: In single region, if all nodes were offline and one comes back, make it primary ---
+            if (
+                appState.regionMode === 'single' &&
+                appState.primaryIndex === -1 &&
+                !appState.failedIndices.has(nodeId)
+            ) {
+                updatePrimaryNode(nodeId);
+            }
+
             updateStatus();
         }
 
