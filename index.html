@@ -264,12 +264,7 @@
             const nodeEl = event.currentTarget;
             const nodeId = parseInt(nodeEl.dataset.id, 10);
 
-            // If region is in outage, ignore manual toggle
-            if (appState.regionMode === 'multi') {
-                const region = appState.nodeRegions[nodeId];
-                if (!appState.regionStatus[region]) return;
-            }
-
+            // --- Allow toggling node regardless of region outage status ---
             // Toggle failed state
             if (appState.failedIndices.has(nodeId)) {
                 appState.failedIndices.delete(nodeId);
@@ -279,7 +274,7 @@
                 nodeEl.classList.add('failed');
             }
 
-            // --- NEW LOGIC: Sync region outage button with node states ---
+            // --- Sync region outage button with node states ---
             if (appState.regionMode === 'multi') {
                 const region = appState.nodeRegions[nodeId];
                 const regionNodeIndices = [];
@@ -289,12 +284,12 @@
                 const allFailed = regionNodeIndices.every(idx => appState.failedIndices.has(idx));
                 const regionBtn = Array.from(regionToggleBtns).find(btn => parseInt(btn.dataset.region, 10) === region);
 
-                if (allFailed && appState.regionStatus[region]) {
+                if (allFailed) {
                     // Mark region as outage
                     appState.regionStatus[region] = false;
                     regionBtn.textContent = `Region ${region}: Outage`;
                     regionBtn.classList.add('outage');
-                } else if (!allFailed && !appState.regionStatus[region]) {
+                } else {
                     // Mark region as available
                     appState.regionStatus[region] = true;
                     regionBtn.textContent = `Region ${region}: Available`;
@@ -306,13 +301,11 @@
             if (nodeId === appState.primaryIndex && appState.failedIndices.has(nodeId)) {
                 electNewPrimary();
             }
-
             // If there is no primary and this node just became available, elect a new primary
             if (appState.primaryIndex === -1 && !appState.failedIndices.has(nodeId)) {
                 electNewPrimary();
             }
-
-            // --- NEW LOGIC: In single region, if all nodes were offline and one comes back, make it primary ---
+            // In single region, if all nodes were offline and one comes back, make it primary
             if (
                 appState.regionMode === 'single' &&
                 appState.primaryIndex === -1 &&
