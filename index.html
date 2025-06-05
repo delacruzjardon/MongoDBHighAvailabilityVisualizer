@@ -314,6 +314,28 @@
                 updatePrimaryNode(nodeId);
             }
 
+            // --- NEW LOGIC: Always move primary to highest-priority available region after any node change ---
+            if (appState.regionMode === 'multi') {
+                for (let priorityRegion = 1; priorityRegion <= 3; priorityRegion++) {
+                    if (appState.regionStatus[priorityRegion]) {
+                        for (let i = 0; i < appState.totalNodes; i++) {
+                            if (
+                                appState.nodeRegions[i] === priorityRegion &&
+                                !appState.failedIndices.has(i)
+                            ) {
+                                if (appState.primaryIndex !== i) {
+                                    updatePrimaryNode(i);
+                                }
+                                updateStatus();
+                                return;
+                            }
+                        }
+                    }
+                }
+                // If no available nodes, ensure primary is -1
+                updatePrimaryNode(-1);
+            }
+
             updateStatus();
         }
 
