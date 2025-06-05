@@ -335,29 +335,12 @@
         appState.primaryIndex === -1 &&
         !appState.failedIndices.has(nodeId)
       ) {
-        updatePrimaryNode(nodeId);
+        electNewPrimary();
       }
 
-      // --- NEW LOGIC: Always move primary to highest-priority available region after any node change ---
+      // Always move primary to highest-priority available region after any node change (multi-region)
       if (appState.regionMode === 'multi') {
-        for (let priorityRegion = 1; priorityRegion <= 3; priorityRegion++) {
-          if (appState.regionStatus[priorityRegion]) {
-            for (let i = 0; i < appState.totalNodes; i++) {
-              if (
-                appState.nodeRegions[i] === priorityRegion &&
-                !appState.failedIndices.has(i)
-              ) {
-                if (appState.primaryIndex !== i) {
-                  updatePrimaryNode(i);
-                }
-                updateStatus();
-                return;
-              }
-            }
-          }
-        }
-        // If no available nodes, ensure primary is -1
-        updatePrimaryNode(-1);
+        electNewPrimary();
       }
 
       updateStatus();
@@ -414,27 +397,9 @@
         }
       }
 
-      // --- NEW LOGIC: If a higher-priority region just became available, move primary there ---
+      // Always move primary to highest-priority available region after any region change (multi-region)
       if (appState.regionMode === 'multi' && appState.regionStatus[region]) {
-        // If region 1 became available, always move primary to region 1 if possible
-        // If region 2 became available and no region 1 nodes are available, move to region 2, etc.
-        for (let priorityRegion = 1; priorityRegion <= 3; priorityRegion++) {
-          if (appState.regionStatus[priorityRegion]) {
-            for (let i = 0; i < appState.totalNodes; i++) {
-              if (
-                appState.nodeRegions[i] === priorityRegion &&
-                !appState.failedIndices.has(i)
-              ) {
-                if (appState.primaryIndex !== i) {
-                  updatePrimaryNode(i);
-                }
-                // Only move to the highest-priority available region
-                updateStatus();
-                return;
-              }
-            }
-          }
-        }
+        electNewPrimary();
       }
 
       updateStatus();
@@ -458,6 +423,16 @@
      * then Region 2, then Region 3.
      */
     function electNewPrimary() {
+      const failedCount = appState.failedIndices.size;
+      const total = appState.totalNodes;
+      const majority = Math.floor(total / 2) + 1;
+
+      // If not enough nodes for majority, no primary should be assigned
+      if (total - failedCount < majority) {
+        updatePrimaryNode(-1);
+        return;
+      }
+
       if (appState.regionMode === 'multi') {
         // Try regions in priority order: 1, then 2, then 3
         for (let region = 1; region <= 3; region++) {
@@ -477,11 +452,9 @@
         // Start searching from the node to the right of the failed primary
         for (let i = 1; i < appState.totalNodes; i++) {
           const potentialNewPrimaryIndex = (appState.primaryIndex + i) % appState.totalNodes;
-
-          // If this node is not failed, promote it
           if (!appState.failedIndices.has(potentialNewPrimaryIndex)) {
             updatePrimaryNode(potentialNewPrimaryIndex);
-            return; // Exit after successful promotion
+            return;
           }
         }
         updatePrimaryNode(-1);
@@ -496,7 +469,7 @@
       // Demote the old primary if it exists
       if (appState.primaryIndex !== -1) {
         const oldPrimaryNode = vizContainer.querySelector(`.node[data-id='${appState.primaryIndex}']`);
-        if(oldPrimaryNode) {
+        if (oldPrimaryNode) {
           const oldLabel = oldPrimaryNode.querySelector('.label');
           oldLabel.textContent = 'Secondary';
           oldLabel.classList.remove('primary');
@@ -509,11 +482,11 @@
 
       // Promote the new primary if one was found
       if (newPrimaryIndex !== -1) {
-         const newPrimaryNode = vizContainer.querySelector(`.node[data-id='${newPrimaryIndex}']`);
-         const newLabel = newPrimaryNode.querySelector('.label');
-         newLabel.textContent = 'Primary';
-         newLabel.classList.remove('secondary');
-         newLabel.classList.add('primary');
+        const newPrimaryNode = vizContainer.querySelector(`.node[data-id='${newPrimaryIndex}']`);
+        const newLabel = newPrimaryNode.querySelector('.label');
+        newLabel.textContent = 'Primary';
+        newLabel.classList.remove('secondary');
+        newLabel.classList.add('primary');
       }
     }
 
