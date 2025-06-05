@@ -70,7 +70,6 @@ footer {
     width: 100%;
     color: #aaa;
     font-size: 14px;
-    /* New styles for layout */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -183,7 +182,7 @@ footer svg {
     justify-content: center;
     align-items: center;
     height: 120px; /* Fixed height to match node height */
-    margin: 0;     /* Remove vertical margin */
+    margin: 0;
     width: 100%;
     overflow: hidden;
 }
