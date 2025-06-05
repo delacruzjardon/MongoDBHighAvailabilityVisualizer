@@ -279,6 +279,29 @@
                 nodeEl.classList.add('failed');
             }
 
+            // --- NEW LOGIC: Sync region outage button with node states ---
+            if (appState.regionMode === 'multi') {
+                const region = appState.nodeRegions[nodeId];
+                const regionNodeIndices = [];
+                for (let i = 0; i < appState.totalNodes; i++) {
+                    if (appState.nodeRegions[i] === region) regionNodeIndices.push(i);
+                }
+                const allFailed = regionNodeIndices.every(idx => appState.failedIndices.has(idx));
+                const regionBtn = Array.from(regionToggleBtns).find(btn => parseInt(btn.dataset.region, 10) === region);
+
+                if (allFailed && appState.regionStatus[region]) {
+                    // Mark region as outage
+                    appState.regionStatus[region] = false;
+                    regionBtn.textContent = `Region ${region}: Outage`;
+                    regionBtn.classList.add('outage');
+                } else if (!allFailed && !appState.regionStatus[region]) {
+                    // Mark region as available
+                    appState.regionStatus[region] = true;
+                    regionBtn.textContent = `Region ${region}: Available`;
+                    regionBtn.classList.remove('outage');
+                }
+            }
+
             // If the primary node just failed, elect a new one
             if (nodeId === appState.primaryIndex && appState.failedIndices.has(nodeId)) {
                 electNewPrimary();
@@ -330,11 +353,9 @@
                         appState.failedIndices.add(i);
                         nodeEl.classList.add('failed');
                     } else {
-                        // Available: unmark as failed (unless user manually failed it)
-                        if (nodeEl.classList.contains('failed')) {
-                            appState.failedIndices.delete(i);
-                            nodeEl.classList.remove('failed');
-                        }
+                        // Available: unmark as failed
+                        appState.failedIndices.delete(i);
+                        nodeEl.classList.remove('failed');
                     }
                 }
             }
