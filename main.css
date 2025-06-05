@@ -1,4 +1,6 @@
-/* --- Base and Layout --- */
+/* =========================
+   Color Variables
+   ========================= */
 :root {
     --primary-green: #00684A;
     --secondary-green: #00ED64;
@@ -7,6 +9,9 @@
     --failure-red: #FF0000;
 }
 
+/* =========================
+   Base Layout
+   ========================= */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--page-background);
@@ -24,6 +29,9 @@ h1 {
     font-weight: 600;
 }
 
+/* =========================
+   Controls
+   ========================= */
 .controls {
     margin-bottom: 30px;
     display: flex;
@@ -48,6 +56,9 @@ h1 {
     color: var(--page-background);
 }
 
+/* =========================
+   Visualization Container
+   ========================= */
 #visualization-container {
     width: 400px;
     height: 400px;
@@ -55,6 +66,9 @@ h1 {
     margin: 20px auto;
 }
 
+/* =========================
+   Status Text
+   ========================= */
 #status-text {
     font-size: 24px;
     font-weight: bold;
@@ -63,6 +77,9 @@ h1 {
     transition: color 0.3s ease;
 }
 
+/* =========================
+   Footer
+   ========================= */
 footer {
     position: absolute;
     bottom: 20px;
@@ -73,19 +90,19 @@ footer {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px; /* Space between text and icons */
+    gap: 8px;
 }
 
 footer a {
-    color: #aaa; /* Inherit color for the icon */
+    color: #aaa;
     display: inline-block;
-    width: 24px;  /* Set icon size */
+    width: 24px;
     height: 24px;
     transition: color 0.2s ease-in-out;
 }
 
 footer a:hover {
-    color: var(--dark-text); /* Change icon color on hover */
+    color: var(--dark-text);
 }
 
 footer svg {
@@ -93,7 +110,9 @@ footer svg {
     height: 100%;
 }
 
-/* --- Node Specific Styling --- */
+/* =========================
+   Node Styling
+   ========================= */
 .node {
     position: absolute;
     width: 100px;
@@ -102,7 +121,6 @@ footer svg {
     flex-direction: column;
     align-items: center;
     cursor: pointer;
-    /* Center the node on its calculated (x,y) coordinates */
     transform: translate(-50%, -50%);
 }
 
@@ -113,7 +131,6 @@ footer svg {
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Add margin-top to push icon down if needed */
     margin-top: 70px;
 }
 
@@ -128,8 +145,8 @@ footer svg {
 .node .failure-x {
     color: var(--failure-red);
     font-weight: bold;
-    display: none; /* Hidden by default */
-    z-index: 2; /* Ensure it's on top */
+    display: none;
+    z-index: 2;
 }
 
 .node.failed .db-icon {
@@ -160,15 +177,17 @@ footer svg {
     height: 75px;
     display: block;
     margin: 0 auto;
-    /* Remove any margin-top if present */
 }
 
+/* =========================
+   Layout Helpers
+   ========================= */
 .dotted-divider-row {
     width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 32px; /* Use divider rows for vertical spacing */
+    height: 32px;
 }
 
 .dotted-divider {
@@ -181,7 +200,7 @@ footer svg {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 120px; /* Fixed height to match node height */
+    height: 120px;
     margin: 0;
     width: 100%;
     overflow: hidden;
