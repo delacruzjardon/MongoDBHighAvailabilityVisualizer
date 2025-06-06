@@ -493,6 +493,7 @@
 
     /**
      * Updates the status text based on cluster quorum.
+     * Also demotes the primary to secondary if we lose majority (read-only).
      */
     function updateStatus() {
       const failedCount = appState.failedIndices.size;
@@ -502,8 +503,32 @@
       if (failedCount === total) {
         statusText.innerHTML = 'Status: <span style="color:' + COLORS.FAILURE + '">Cluster Offline ❌</span>';
       } else if (failedCount >= majority || appState.primaryIndex === -1) {
+        // Demote the primary visually if we lose majority but still have a primaryIndex set
+        if (appState.primaryIndex !== -1) {
+          const primaryNode = vizContainer.querySelector(`.node[data-id='${appState.primaryIndex}']`);
+          if (primaryNode) {
+            const label = primaryNode.querySelector('.label');
+            if (label && label.textContent === 'Primary') {
+              label.textContent = 'Secondary';
+              label.classList.remove('primary');
+              label.classList.add('secondary');
+            }
+          }
+        }
         statusText.innerHTML = 'Status: <span style="color:' + COLORS.FAILURE + '">Read-Only ⚠️</span>';
       } else {
+        // If a primary exists, ensure it's visually marked as primary
+        if (appState.primaryIndex !== -1) {
+          const primaryNode = vizContainer.querySelector(`.node[data-id='${appState.primaryIndex}']`);
+          if (primaryNode) {
+            const label = primaryNode.querySelector('.label');
+            if (label && label.textContent !== 'Primary') {
+              label.textContent = 'Primary';
+              label.classList.remove('secondary');
+              label.classList.add('primary');
+            }
+          }
+        }
         statusText.innerHTML = 'Status: <span style="color:' + COLORS.PRIMARY + '">Primary Accepting Writes</span>';
       }
     }
