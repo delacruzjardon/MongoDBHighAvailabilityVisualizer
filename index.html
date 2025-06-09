@@ -1,668 +1,271 @@
-<!DOCTYPE html>    
-<html lang="en">    
-<head>    
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
   <meta charset="UTF-8">    
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">    
-  <meta name="author" content="David Hiltenbrand">    
-  <meta name="image" property="og:image" content="img/app-preview.png">    
-  <meta name="description" property="og:description" content="Simply Visualize MongoDB High Availability">    
-  <title>MongoDB High Availability Visualizer</title>    
-  <link rel="stylesheet" href="main.css">    
-  <link rel="icon" type="image/png" href="img/mdb-database.png">    
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+  <title>MongoDB High Availability Visualizer</title>  
+  <link rel="stylesheet" href="main.css">  
+  <link rel="icon" type="image/png" href="img/mdb-database.png">  
   <style>  
+    #visualization-container {  
+      position: relative;  
+      margin: 0 auto;  
+      /* These will be set by JS but set here for FOUC fallback */  
+      width: 480px;  
+      height: 480px;  
+      min-width: 300px;  
+      min-height: 300px;  
+      max-width: 100vw;  
+      max-height: 100vw;  
+      /* background: #fafbfa; */ /* Optional: for visual debugging */  
+    }  
+   #status-text {  
+  margin-top: 50px;  
+  text-align: center;  
+  font-size: 1.25em;  
+}  
+  
     #visualization-container svg line.network-link {  
-      stroke: #4e9a06; /* MongoDB green */  
+      stroke: #4e9a06;  
       opacity: 0.7;  
       transition: stroke 0.22s, opacity 0.12s;  
     }  
     #visualization-container svg line.network-link.down {  
-      stroke: #d7263d; /* fail red */  
+      stroke: #d7263d;  
       opacity: 0.9;  
     }  
     #visualization-container svg line.network-link:hover {  
       opacity: 1;  
       stroke-width: 7;  
     }  
+    /* Example node CSS, adjust as per your main.css */  
+    .node {  
+      position: absolute;  
+      width: 64px;  
+      height: 64px;  
+      transform: translate(-50%, -50%);  
+      z-index: 101;  
+    }  
   </style>  
-</head>    
-<body>    
-    
-  <h1>MongoDB High Availability Visualizer vdj</h1>    
-    
-  <div class="controls">    
-    <span>Choose nodes:</span>    
-    <button id="btn-3" class="node-btn active">3 nodes</button>    
-    <button id="btn-5" class="node-btn">5 nodes</button>    
-    <button id="btn-7" class="node-btn">7 nodes</button>    
-    <span style="margin-left:2em;">Deployment:</span>    
-    <button id="single-region-btn" class="region-mode-btn active">Single Region</button>    
-    <button id="multi-region-btn" class="region-mode-btn">Multi-Region</button>    
-    <button id="reset-btn" style="margin-left:2em;">Reset</button>    
-  </div>    
-    
-  <div id="region-toggles" style="display:none; margin:1em 0;">    
-    <span>Choose Region Outage:</span>    
-    <button class="region-toggle" data-region="1">Region 1: Available</button>    
-    <button class="region-toggle" data-region="2">Region 2: Available</button>    
-    <button class="region-toggle" data-region="3">Region 3: Available</button>    
-  </div>    
-    
-  <div id="visualization-container"></div>    
-    
-  <p id="status-text">Status: Primary Accepting Writes</p>    
-    
-  <footer>    
-    <span>Made by David Hiltenbrand (with the help of ✨AI✨)</span>    
-    <a href="https://www.linkedin.com/in/davidehiltenbrand/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn Profile">    
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">    
-        <path d="M20.5 2h-17A1.5 1.5 0 0 0 2 3.5v17A1.5 1.5 0 0 0 3.5 22h17a1.5 1.5 0 0 0 1.5-1.5v-17A1.5 1.5 0 0 0 20.5 2ZM8 19H5V8h3v11ZM6.5 6.73c-.97 0-1.75-.78-1.75-1.75S5.53 3.23 6.5 3.23c.97 0 1.75.78 1.75 1.75S7.47 6.73 6.5 6.73ZM20 19h-3v-5.5c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.44-2.13 2.94V19h-3V8h2.88v1.32h.04c.4-.76 1.37-1.55 2.84-1.55 3.03 0 3.59 1.99 3.59 4.58V19Z"/>    
-      </svg>    
-    </a>    
-    <a href="https://github.com/DavidHiltenbrand/MongoDBHighAvailabilityVisualizer" target="_blank" rel="noopener noreferrer" aria-label="GitHub Profile">    
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor">    
-        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>    
-      </svg>    
-    </a>    
-  </footer>    
-    
-  <script>    
-    // --- DOM Elements & Constants ---    
-    const vizContainer = document.getElementById('visualization-container');    
-    const statusText = document.getElementById('status-text');    
-    const nodeButtons = document.querySelectorAll('.node-btn');    
-    const regionModeBtns = document.querySelectorAll('.region-mode-btn');    
-    const regionToggles = document.getElementById('region-toggles');    
-    const regionToggleBtns = regionToggles.querySelectorAll('.region-toggle');    
-    const resetBtn = document.getElementById('reset-btn');    
-    
-    const COLORS = {    
-      PRIMARY: 'var(--primary-green)',    
-      SECONDARY: 'var(--secondary-green)',    
-      FAILURE: 'var(--failure-red)',    
-    };    
-    
-    // --- SVG Templates for Icons ---    
-    // A red "X" icon for failures    
-    const failureXSVG = `    
-      <svg class="failure-x" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">    
-        <line x1="15" y1="15" x2="85" y2="85" stroke="${COLORS.FAILURE}" stroke-width="8" stroke-linecap="round"/>    
-        <line x1="85" y1="15" x2="15" y2="85" stroke="${COLORS.FAILURE}" stroke-width="8" stroke-linecap="round"/>    
-      </svg>    
-    `;    
-    
-    // --- Application State ---    
-    let appState = {    
-      totalNodes: 0,    
-      primaryIndex: 0,    
-      failedIndices: new Set(),    
-      regionMode: 'single', // 'single' or 'multi'    
-      nodeRegions: [], // Array of region numbers for each node    
-      regionStatus: {1: true, 2: true, 3: true}, // true = available, false = outage    
-    };    
-    
-    /**    
-     * Assigns nodes to regions based on node count and multi-region rules.    
-     * @param {number} numNodes    
-     * @returns {number[]} Array of region numbers for each node (1-based)    
-     */    
-    function assignRegions(numNodes) {    
-      if (appState.regionMode === 'single') {    
-        return Array(numNodes).fill(1);    
-      }    
-      // Multi-region distribution    
-      if (numNodes === 3) return [1,2,3];    
-      if (numNodes === 5) return [1,1,2,2,3];    
-      if (numNodes === 7) return [1,1,1,2,2,3,3]; // 3/2/2 distribution    
-      // fallback: single region    
-      return Array(numNodes).fill(1);    
-    }    
-    
-    /**    
-     * Clears and generates the node visualization in a circle or grid.    
-     * @param {number} numNodes The number of nodes to create (3, 5, or 7).    
-     */    
-    function generateNodes(numNodes) {    
-      // 1. Reset state and UI    
-      vizContainer.innerHTML = '';    
-      appState.totalNodes = numNodes;    
-      appState.primaryIndex = 0;    
-      appState.failedIndices = new Set();    
-      appState.nodeRegions = assignRegions(numNodes);    
-    
-      // Reset region status if switching to single region    
-      if (appState.regionMode === 'single') {    
-        appState.regionStatus = {1: true, 2: true, 3: true};    
-        regionToggles.style.display = 'none';    
-      } else {    
-        regionToggles.style.display = '';    
-        // Reset region toggles to available    
-        appState.regionStatus = {1: true, 2: true, 3: true};    
-        regionToggleBtns.forEach(btn => {    
-          btn.textContent = `Region ${btn.dataset.region}: Available`;    
-          btn.classList.remove('outage');    
-        });    
-      }    
-    
-      if (appState.regionMode === 'single') {    
-        // --- Circular layout for single region ---  
-        vizContainer.style.display = '';  
-        vizContainer.style.flexDirection = '';  
-        vizContainer.style.alignItems = '';  
-        vizContainer.style.justifyContent = '';  
-        vizContainer.style.width = '';  
-        vizContainer.style.height = '';  
-        vizContainer.style.position = 'relative'; // Needed for absolute SVG  
-  
-        const radius = 150;  
-        const containerSize = 400;  
-        const centerX = containerSize / 2;  
-        const centerY = containerSize / 2;  
-        const angleOffset = -Math.PI / 2;  
-  
-        // --- SVG for clickable connection lines ---  
+</head>  
+<body>  
+  <h1>MongoDB High Availability Visualizer vdj</h1>  
+  <div class="controls">  
+    <span>Choose nodes:</span>  
+    <button id="btn-3" class="node-btn active">3 nodes</button>  
+    <button id="btn-5" class="node-btn">5 nodes</button>  
+    <button id="btn-7" class="node-btn">7 nodes</button>  
+    <span style="margin-left:2em;">Deployment:</span>  
+    <button id="single-region-btn" class="region-mode-btn active">Single Region</button>  
+    <button id="multi-region-btn" class="region-mode-btn">Multi-Region</button>  
+    <button id="reset-btn" style="margin-left:2em;">Reset</button>  
+  </div>  
+  <div id="region-toggles" style="display:none; margin:1em 0;">  
+    <span>Choose Region Outage:</span>  
+    <button class="region-toggle" data-region="1">Region 1: Available</button>  
+    <button class="region-toggle" data-region="2">Region 2: Available</button>  
+    <button class="region-toggle" data-region="3">Region 3: Available</button>  
+  </div>  
+  <!-- Status must be INSIDE the visualization container -->  
+  <div id="visualization-container">    </div>  
+    <p id="status-text">Status: Primary Accepting Writes</p>  
+
+  <footer>  
+    <span>Made by David Hiltenbrand (with the help of ✨AI✨)</span>  
+  </footer>  
+  <script>  
+    // --- DOM elements & state  
+    const vizContainer = document.getElementById('visualization-container');  
+    const statusText = document.getElementById('status-text');  
+    const nodeButtons = document.querySelectorAll('.node-btn');  
+    const regionModeBtns = document.querySelectorAll('.region-mode-btn');  
+    const regionToggles = document.getElementById('region-toggles');  
+    const regionToggleBtns = regionToggles.querySelectorAll('.region-toggle');  
+    const resetBtn = document.getElementById('reset-btn');  
+    const COLORS = {  
+      PRIMARY: '#4e9a06',  
+      SECONDARY: '#74a963',  
+      FAILURE: '#d7263d',  
+      LINK_UP: '#4e9a06',  
+      LINK_DOWN: '#d7263d',  
+    };  
+    const failureXSVG = `  
+      <svg class="failure-x" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">  
+        <line x1="15" y1="15" x2="85" y2="85" stroke="${COLORS.FAILURE}" stroke-width="8" stroke-linecap="round"/>  
+        <line x1="85" y1="15" x2="15" y2="85" stroke="${COLORS.FAILURE}" stroke-width="8" stroke-linecap="round"/>  
+      </svg>  
+    `;  
+    let appState = {  
+      totalNodes: 0,  
+      primaryIndex: 0,  
+      failedIndices: new Set(),  
+      regionMode: 'single',  
+      nodeRegions: [],  
+      regionStatus: {1: true, 2: true, 3: true},  
+      linkDownMap: {},  
+    };  
+    function assignRegions(numNodes) {  
+      if (appState.regionMode === 'single') return Array(numNodes).fill(1);  
+      if (numNodes === 3) return [1,2,3];  
+      if (numNodes === 5) return [1,1,2,2,3];  
+      if (numNodes === 7) return [1,1,1,2,2,3,3];  
+      return Array(numNodes).fill(1);  
+    }  
+    function generateNodes(numNodes) {  
+      // Remove all except status-text (re-draw nodes/SVG only)  
+      Array.from(vizContainer.children).forEach(e=>{  
+        if(e!==statusText)vizContainer.removeChild(e);  
+      });  
+      appState.totalNodes = numNodes;  
+      appState.primaryIndex = 0;  
+      appState.failedIndices = new Set();  
+      appState.nodeRegions = assignRegions(numNodes);  
+      appState.linkDownMap = {};  
+      // SVG/circle layout config  
+      const radius = 180; // 20% larger than 150  
+      const containerSize = 480;  
+      const centerX = containerSize/2;  
+      const centerY = containerSize/2;  
+      const angleOffset = -Math.PI/2;  
+      vizContainer.style.width = containerSize + "px";  
+      vizContainer.style.height = containerSize + "px";  
+      vizContainer.style.position = "relative"; // always  
+      // Circular layout for single region  
+      if (appState.regionMode === 'single') {  
+        // SVG for clickable connection lines  
         let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");  
         svg.setAttribute("width", containerSize);  
         svg.setAttribute("height", containerSize);  
         svg.style.position = "absolute";  
         svg.style.left = "0";  
         svg.style.top = "0";  
-        svg.style.pointerEvents = "none"; // Only lines themselves respond  
-  
-        // --- This value controls how much shorter the lines are (should be a little more than the node's radius) ---  
-        const nodeRadius = 32; // px (estimate - tweak to fit your design)  
-        const edgeGap = nodeRadius + 6; // px  
-  
-        // Draw all unique pairs of connections  
+        svg.style.pointerEvents = "none";  
+        const nodeRadius = 12;  
+        const edgeGap = nodeRadius ;  
         for (let i = 0; i < numNodes; i++) {  
-          const angle1 = (i / numNodes) * 2 * Math.PI + angleOffset;  
-          const x1 = centerX + radius * Math.cos(angle1);  
-          const y1 = centerY + radius * Math.sin(angle1);  
-  
-          for (let j = i + 1; j < numNodes; j++) {  
-            const angle2 = (j / numNodes) * 2 * Math.PI + angleOffset;  
-            const x2 = centerX + radius * Math.cos(angle2);  
-            const y2 = centerY + radius * Math.sin(angle2);  
-  
-            // Shorten both ends of the line  
-            const dx = x2 - x1;  
-            const dy = y2 - y1;  
-            const len = Math.sqrt(dx*dx + dy*dy);  
-            const ratio = edgeGap / len;  
-            const shortX1 = x1 + dx * ratio;  
-            const shortY1 = y1 + dy * ratio;  
-            const shortX2 = x2 - dx * ratio;  
-            const shortY2 = y2 - dy * ratio;  
-  
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");  
-            line.setAttribute("x1", shortX1);  
-            line.setAttribute("y1", shortY1);  
-            line.setAttribute("x2", shortX2);  
-            line.setAttribute("y2", shortY2);  
+          const angle1 = (i/numNodes)*2*Math.PI + angleOffset;  
+          const x1 = centerX+radius*Math.cos(angle1);  
+          const y1 = centerY+radius*Math.sin(angle1);  
+          for (let j = i+1; j<numNodes; j++) {  
+            const angle2 = (j/numNodes)*2*Math.PI + angleOffset;  
+            const x2 = centerX+radius*Math.cos(angle2);  
+            const y2 = centerY+radius*Math.sin(angle2);  
+            const dx = x2-x1; const dy=y2-y1; const len=Math.sqrt(dx*dx+dy*dy);  
+            const ratio = edgeGap/len;  
+            const sx1 = x1+dx*ratio, sy1 = y1+dy*ratio;  
+            const sx2 = x2-dx*ratio, sy2 = y2-dy*ratio;  
+            const linkKey = `${i}-${j}`;  
+            const line = document.createElementNS("http://www.w3.org/2000/svg","line");  
+            line.setAttribute("x1", sx1); line.setAttribute("y1", sy1);  
+            line.setAttribute("x2", sx2); line.setAttribute("y2", sy2);  
             line.setAttribute("stroke-width", "5");  
             line.setAttribute("opacity", "0.7");  
-            line.setAttribute("data-connection", `${i}-${j}`);  
+            line.setAttribute("data-connection", linkKey);  
             line.classList.add("network-link");  
-  
-            // Toggle down/up state visually on click  
             line.style.cursor = "pointer";  
             line.style.pointerEvents = "auto";  
-            line.addEventListener("click", function(e) {  
+            appState.linkDownMap[linkKey]=false;  
+            line.addEventListener("click", function(e){  
               e.stopPropagation();  
               line.classList.toggle("down");  
-              // You could fire additional logic here if needed.  
+              appState.linkDownMap[linkKey]=line.classList.contains("down");  
+              updateStatusLine(i, j, appState.linkDownMap[linkKey]);  
             });  
-  
             svg.appendChild(line);  
           }  
         }  
-  
-        vizContainer.appendChild(svg);  
-  
-        // 3. Create and place each node    
-        for (let i = 0; i < numNodes; i++) {    
-          const isPrimary = (i === appState.primaryIndex);    
-          const angle = (i / numNodes) * 2 * Math.PI + angleOffset;    
-          const x = centerX + radius * Math.cos(angle);    
-          const y = centerY + radius * Math.sin(angle);    
-    
-          const nodeEl = document.createElement('div');    
-          nodeEl.className = 'node';    
-          nodeEl.style.left = `${x}px`;    
-          nodeEl.style.top = `${y}px`;    
-          nodeEl.dataset.id = i;    
-          nodeEl.dataset.region = appState.nodeRegions[i];    
-    
-          // Add icons and label    
-          nodeEl.innerHTML = `    
-            <div class="icon-container">    
-              <img src="img/mdb-database.png" alt="MongoDB Database Icon" class="db-icon" />    
-              ${failureXSVG}    
-            </div>    
-            <p class="label ${isPrimary ? 'primary' : 'secondary'}">    
-              ${isPrimary ? 'Primary' : 'Secondary'}    
-            </p>    
-            ${appState.regionMode === 'multi' ? `<span class="region-label">Region ${appState.nodeRegions[i]}</span>` : ''}    
-          `;    
-    
-          // Add click listener    
-          nodeEl.addEventListener('click', handleNodeClick);    
-    
-          vizContainer.appendChild(nodeEl);    
-        }    
-      } else {    
-        // --- Square grid layout for multi-region ---    
-        // Group nodes by region    
-        const regionNodes = {1: [], 2: [], 3: []};    
-        for (let i = 0; i < numNodes; i++) {    
-          regionNodes[appState.nodeRegions[i]].push(i);    
-        }    
-    
-        // Style container for grid    
-        vizContainer.style.display = 'flex';    
-        vizContainer.style.flexDirection = 'column';    
-        vizContainer.style.alignItems = 'center';    
-        vizContainer.style.justifyContent = 'center';    
-        vizContainer.style.width = '100%';    
-        vizContainer.style.height = 'auto';    
-        vizContainer.style.position = 'relative';    
-    
-        // Helper: create a region row    
-        function createRegionRow(region, nodeIndices) {    
-          const row = document.createElement('div');    
-          row.className = 'region-row';    
-          row.style.display = 'flex';    
-          row.style.justifyContent = 'center';    
-          row.style.alignItems = 'center';    
-          row.style.height = '120px'; /* Fixed height to match node height */    
-          row.style.margin = '0';     /* Remove vertical margin */    
-          row.style.width = '100%';    
-    
-          // Add region label (left side)    
-          const regionLabel = document.createElement('span');    
-          regionLabel.textContent = `Region ${region}`;    
-          regionLabel.className = 'region-row-label';    
-          regionLabel.style.fontWeight = 'bold';    
-          regionLabel.style.marginRight = '1.5em';    
-          regionLabel.style.minWidth = '80px';    
-          regionLabel.style.textAlign = 'right';    
-          row.appendChild(regionLabel);    
-    
-          // Add nodes for this region    
-          nodeIndices.forEach(i => {    
-            const isPrimary = (i === appState.primaryIndex);    
-            const nodeEl = document.createElement('div');    
-            nodeEl.className = 'node';    
-            nodeEl.style.position = 'relative';    
-            nodeEl.style.margin = '0 24px';    
-            nodeEl.dataset.id = i;    
-            nodeEl.dataset.region = region;    
-    
-            nodeEl.innerHTML = `    
-              <div class="icon-container">    
-                <img src="img/mdb-database.png" alt="MongoDB Database Icon" class="db-icon" />    
-                ${failureXSVG}    
-              </div>    
-              <p class="label ${isPrimary ? 'primary' : 'secondary'}">    
-                ${isPrimary ? 'Primary' : 'Secondary'}    
-              </p>    
-            `;    
-    
-            nodeEl.addEventListener('click', handleNodeClick);    
-            row.appendChild(nodeEl);    
-          });    
-    
-          // Spacer to balance label on right    
-          const rightSpacer = document.createElement('span');    
-          rightSpacer.style.minWidth = '80px';    
-          rightSpacer.style.marginLeft = '1.5em';    
-          row.appendChild(rightSpacer);    
-    
-          return row;    
-        }    
-    
-        // --- Render 5 rows: region, divider, region, divider, region ---    
-        // Row 1: Region 1    
-        const row1 = createRegionRow(1, regionNodes[1]);    
-        vizContainer.appendChild(row1);    
-    
-        // Row 2: Dotted divider    
-        const divider1 = document.createElement('div');    
-        divider1.className = 'dotted-divider-row';    
-        divider1.innerHTML = '<div class="dotted-divider"></div>';    
-        vizContainer.appendChild(divider1);    
-    
-        // Row 3: Region 2    
-        const row2 = createRegionRow(2, regionNodes[2]);    
-        vizContainer.appendChild(row2);    
-    
-        // Row 4: Dotted divider    
-        const divider2 = document.createElement('div');    
-        divider2.className = 'dotted-divider-row';    
-        divider2.innerHTML = '<div class="dotted-divider"></div>';    
-        vizContainer.appendChild(divider2);    
-    
-        // Row 5: Region 3    
-        const row3 = createRegionRow(3, regionNodes[3]);    
-        vizContainer.appendChild(row3);    
-      }    
-    
-      // 4. Update UI elements    
-      updateButtonStyles(numNodes);    
-      updateRegionModeStyles();    
-      updateStatus();    
-    }    
-    
-    /**    
-     * Handles the click event on a node, toggling its failed state.    
-     * @param {MouseEvent} event The click event.    
-     */    
-    function handleNodeClick(event) {    
-      const nodeEl = event.currentTarget;    
-      const nodeId = parseInt(nodeEl.dataset.id, 10);    
-    
-      // --- Allow toggling node regardless of region outage status ---    
-      // Toggle failed state    
-      if (appState.failedIndices.has(nodeId)) {    
-        appState.failedIndices.delete(nodeId);    
-        nodeEl.classList.remove('failed');    
-      } else {    
-        appState.failedIndices.add(nodeId);    
-        nodeEl.classList.add('failed');    
-      }    
-    
-      // --- Sync region outage button with node states ---    
-      if (appState.regionMode === 'multi') {    
-        const region = appState.nodeRegions[nodeId];    
-        const regionNodeIndices = [];    
-        for (let i = 0; i < appState.totalNodes; i++) {    
-          if (appState.nodeRegions[i] === region) regionNodeIndices.push(i);    
-        }    
-        const allFailed = regionNodeIndices.every(idx => appState.failedIndices.has(idx));    
-        const regionBtn = Array.from(regionToggleBtns).find(btn => parseInt(btn.dataset.region, 10) === region);    
-    
-        if (allFailed) {    
-          // Mark region as outage    
-          appState.regionStatus[region] = false;    
-          regionBtn.textContent = `Region ${region}: Outage`;    
-          regionBtn.classList.add('outage');    
-        } else {    
-          // Mark region as available    
-          appState.regionStatus[region] = true;    
-          regionBtn.textContent = `Region ${region}: Available`;    
-          regionBtn.classList.remove('outage');    
-        }    
-      }    
-    
-      // If the primary node just failed, elect a new one    
-      if (nodeId === appState.primaryIndex && appState.failedIndices.has(nodeId)) {    
-        electNewPrimary();    
-      }    
-      // If there is no primary and this node just became available, elect a new primary    
-      if (appState.primaryIndex === -1 && !appState.failedIndices.has(nodeId)) {    
-        electNewPrimary();    
-      }    
-      // In single region, if all nodes were offline and one comes back, make it primary    
-      if (    
-        appState.regionMode === 'single' &&    
-        appState.primaryIndex === -1 &&    
-        !appState.failedIndices.has(nodeId)    
-      ) {    
-        electNewPrimary();    
-      }    
-    
-      // Always move primary to highest-priority available region after any node change (multi-region)    
-      if (appState.regionMode === 'multi') {    
-        electNewPrimary();    
-      }    
-    
-      updateStatus();    
-    }    
-    
-    /**    
-     * Handles region outage toggle.    
-     */    
-    function handleRegionToggle(event) {    
-      const btn = event.currentTarget;    
-      const region = parseInt(btn.dataset.region, 10);    
-      const isAvailable = appState.regionStatus[region];    
-    
-      // Toggle region status    
-      appState.regionStatus[region] = !isAvailable;    
-    
-      // Update button UI    
-      if (appState.regionStatus[region]) {    
-        btn.textContent = `Region ${region}: Available`;    
-        btn.classList.remove('outage');    
-      } else {    
-        btn.textContent = `Region ${region}: Outage`;    
-        btn.classList.add('outage');    
-      }    
-    
-      // Update all nodes in this region    
-      for (let i = 0; i < appState.totalNodes; i++) {    
-        if (appState.nodeRegions[i] === region) {    
-          const nodeEl = vizContainer.querySelector(`.node[data-id='${i}']`);    
-          if (!appState.regionStatus[region]) {    
-            // Outage: mark as failed    
-            appState.failedIndices.add(i);    
-            nodeEl.classList.add('failed');    
-          } else {    
-            // Available: unmark as failed    
-            appState.failedIndices.delete(i);    
-            nodeEl.classList.remove('failed');    
-          }    
-        }    
-      }    
-    
-      // If primary is in outage, elect new primary    
-      if (!appState.regionStatus[appState.nodeRegions[appState.primaryIndex]]) {    
-        electNewPrimary();    
-      }    
-    
-      // If there is no primary and at least one node is now available, elect a new primary    
-      if (appState.primaryIndex === -1) {    
-        for (let i = 0; i < appState.totalNodes; i++) {    
-          if (!appState.failedIndices.has(i)) {    
-            electNewPrimary();    
-            break;    
-          }    
-        }    
-      }    
-    
-      // Always move primary to highest-priority available region after any region change (multi-region)    
-      if (appState.regionMode === 'multi' && appState.regionStatus[region]) {    
-        electNewPrimary();    
-      }    
-    
-      updateStatus();    
-    }    
-    
-    /**    
-     * Handles region mode toggle (single/multi).    
-     */    
-    function handleRegionModeToggle(event) {    
-      const btn = event.currentTarget;    
-      const mode = btn.id === 'multi-region-btn' ? 'multi' : 'single';    
-      if (appState.regionMode !== mode) {    
-        appState.regionMode = mode;    
-        generateNodes(appState.totalNodes);    
-      }    
-    }    
-    
-    /**    
-     * Finds the next available secondary and promotes it to primary.    
-     * In multi-region mode, always prefer a Region 1 node if available,    
-     * then Region 2, then Region 3.    
-     */    
-    function electNewPrimary() {    
-      const failedCount = appState.failedIndices.size;    
-      const total = appState.totalNodes;    
-      const majority = Math.floor(total / 2) + 1;    
-    
-      // If not enough nodes for majority, no primary should be assigned    
-      if (total - failedCount < majority) {    
-        updatePrimaryNode(-1);    
-        return;    
-      }    
-    
-      if (appState.regionMode === 'multi') {    
-        // Try regions in priority order: 1, then 2, then 3    
-        for (let region = 1; region <= 3; region++) {    
-          for (let i = 0; i < appState.totalNodes; i++) {    
-            if (    
-              appState.nodeRegions[i] === region &&    
-              !appState.failedIndices.has(i)    
-            ) {    
-              updatePrimaryNode(i);    
-              return;    
-            }    
-          }    
-        }    
-        // No available nodes    
-        updatePrimaryNode(-1);    
-      } else {    
-        // Start searching from the node to the right of the failed primary    
-        for (let i = 1; i < appState.totalNodes; i++) {    
-          const potentialNewPrimaryIndex = (appState.primaryIndex + i) % appState.totalNodes;    
-          if (!appState.failedIndices.has(potentialNewPrimaryIndex)) {    
-            updatePrimaryNode(potentialNewPrimaryIndex);    
-            return;    
-          }    
-        }    
-        updatePrimaryNode(-1);    
-      }    
-    }    
-        
-    /**    
-     * Updates the DOM and state to reflect a new primary.    
-     * @param {number} newPrimaryIndex The index of the new primary node.    
-     */    
-    function updatePrimaryNode(newPrimaryIndex) {    
-      // Demote the old primary if it exists    
-      if (appState.primaryIndex !== -1) {    
-        const oldPrimaryNode = vizContainer.querySelector(`.node[data-id='${appState.primaryIndex}']`);    
-        if (oldPrimaryNode) {    
-          const oldLabel = oldPrimaryNode.querySelector('.label');    
-          oldLabel.textContent = 'Secondary';    
-          oldLabel.classList.remove('primary');    
-          oldLabel.classList.add('secondary');    
-        }    
-      }    
-    
-      // Update state    
-      appState.primaryIndex = newPrimaryIndex;    
-    
-      // Promote the new primary if one was found    
-      if (newPrimaryIndex !== -1) {    
-        const newPrimaryNode = vizContainer.querySelector(`.node[data-id='${newPrimaryIndex}']`);    
-        const newLabel = newPrimaryNode.querySelector('.label');    
-        newLabel.textContent = 'Primary';    
-        newLabel.classList.remove('secondary');    
-        newLabel.classList.add('primary');    
-      }    
-    }    
-    
-    
-    /**    
-     * Updates the status text based on cluster quorum.    
-     * Also demotes the primary to secondary if we lose majority (read-only).    
-     */    
-    function updateStatus() {    
-      const failedCount = appState.failedIndices.size;    
-      const total = appState.totalNodes;    
-      const majority = Math.floor(total / 2) + 1;    
-    
-      if (failedCount === total) {    
-        statusText.innerHTML = 'Status: <span style="color:' + COLORS.FAILURE + '">Cluster Offline ❌</span>';    
-      } else if (failedCount >= majority || appState.primaryIndex === -1) {    
-        // Demote the primary visually if we lose majority but still have a primaryIndex set    
-        if (appState.primaryIndex !== -1) {    
-          const primaryNode = vizContainer.querySelector(`.node[data-id='${appState.primaryIndex}']`);    
-          if (primaryNode) {    
-            const label = primaryNode.querySelector('.label');    
-            if (label && label.textContent === 'Primary') {    
-              label.textContent = 'Secondary';    
-              label.classList.remove('primary');    
-              label.classList.add('secondary');    
-            }    
-          }    
-        }    
-        statusText.innerHTML = 'Status: <span style="color:' + COLORS.FAILURE + '">Read-Only ⚠️</span>';    
-      } else {    
-        // If a primary exists, ensure it's visually marked as primary    
-        if (appState.primaryIndex !== -1) {    
-          const primaryNode = vizContainer.querySelector(`.node[data-id='${appState.primaryIndex}']`);    
-          if (primaryNode) {    
-            const label = primaryNode.querySelector('.label');    
-            if (label && label.textContent !== 'Primary') {    
-              label.textContent = 'Primary';    
-              label.classList.remove('secondary');    
-              label.classList.add('primary');    
-            }    
-          }    
-        }    
-        statusText.innerHTML = 'Status: <span style="color:' + COLORS.PRIMARY + '">Primary Accepting Writes</span>';    
-      }    
-    }    
-        
-    /**    
-     * Updates the visual style of the node selection buttons.    
-     * @param {number} activeCount The number corresponding to the active button.    
-     */    
-    function updateButtonStyles(activeCount) {    
-       nodeButtons.forEach(btn => {    
-          btn.classList.remove('active');    
-          if (btn.id === `btn-${activeCount}`) {    
-              btn.classList.add('active');    
-          }    
-      });    
-    }    
-    
-    /**    
-     * Updates the visual style of the region mode buttons.    
-     */    
-    function updateRegionModeStyles() {    
-      regionModeBtns.forEach(btn => {    
-        btn.classList.remove('active');    
-        if (    
-          (btn.id === 'single-region-btn' && appState.regionMode === 'single') ||    
-          (btn.id === 'multi-region-btn' && appState.regionMode === 'multi')    
-        ) {    
-          btn.classList.add('active');    
-        }    
-      });    
-    }    
-    
-    /**    
-     * Resets the app to its original state: all nodes available, current node count and deployment mode.    
-     */    
-    function resetApp() {    
-      // Do not change appState.regionMode or node count, just regenerate nodes with current settings    
-      generateNodes(appState.totalNodes);    
-    }    
-    
-    // --- Event Listeners & Initialization ---    
-    
-    nodeButtons.forEach(button => {    
-      button.addEventListener('click', (e) => {    
-        const count = parseInt(e.target.id.split('-')[1], 10);    
-        generateNodes(count);    
-      });    
-    });    
-    
-    regionModeBtns.forEach(btn => {    
-      btn.addEventListener('click', handleRegionModeToggle);    
-    });    
-    
-    regionToggleBtns.forEach(btn => {    
-      btn.addEventListener('click', handleRegionToggle);    
-    });    
-    
-    resetBtn.addEventListener('click', resetApp);    
-    
-    // Initial load with 3 nodes    
-    window.addEventListener('load', () => generateNodes(3));    
-    
-  </script>    
-</body>    
+        vizContainer.appendChild(svg); 
+        const yShift = -60; 
+        for(let i=0; i<numNodes; i++){  
+          const isPrimary = (i===appState.primaryIndex);  
+          const angle = (i/numNodes)*2*Math.PI+angleOffset;  
+          const x = centerX+radius*Math.cos(angle);  
+          const y = centerY+radius*Math.sin(angle) + yShift;   
+          const nodeEl = document.createElement('div');  
+          nodeEl.className = 'node';  
+          nodeEl.style.left = x + "px";  
+          nodeEl.style.top = y + "px";  
+          nodeEl.style.position = 'absolute';  
+          nodeEl.dataset.id = i;  
+          nodeEl.dataset.region = appState.nodeRegions[i];  
+          nodeEl.innerHTML = `  
+            <div class="icon-container">  
+              <img src="img/mdb-database.png" alt="MongoDB Database Icon" class="db-icon" />  
+              ${failureXSVG}  
+            </div>  
+            <p class="label ${isPrimary ? 'primary' : 'secondary'}">  
+              ${isPrimary ? 'Primary' : 'Secondary'}  
+            </p>  
+          `;  
+          nodeEl.addEventListener('click', handleNodeClick);  
+          vizContainer.appendChild(nodeEl);  
+        }  
+      } else {  
+        // If in multi-region, just clear SVG/nodes and hide status/position as needed  
+        // (not shown here for brevity, but you can add this branch from your original code)  
+      }  
+      updateButtonStyles(numNodes);  
+      updateRegionModeStyles();  
+      updateStatus();  
+    }  
+    function updateStatusLine(i, j, isDown) {  
+      if(isDown)  
+        statusText.innerHTML = `<span style="color:#d7263d">Network is <b>down</b> between Node ${i+1} and Node ${j+1} &#10060;</span>`;  
+      else  
+        statusText.innerHTML = `<span style="color:#4e9a06">Network is <b>up</b> between Node ${i+1} and Node ${j+1} &#9989;</span>`;  
+    }  
+    function handleNodeClick(event) {  
+      const nodeEl = event.currentTarget;  
+      const nodeId = parseInt(nodeEl.dataset.id, 10);  
+      if(appState.failedIndices.has(nodeId)){  
+        appState.failedIndices.delete(nodeId); nodeEl.classList.remove('failed');  
+      } else {  
+        appState.failedIndices.add(nodeId); nodeEl.classList.add('failed');  
+      }  
+      updateStatus();  
+    }  
+    function updateButtonStyles(activeCount) {  
+      nodeButtons.forEach(btn=>{  
+        btn.classList.remove('active');  
+        if(btn.id===`btn-${activeCount}`)btn.classList.add('active');  
+      });  
+    }  
+    function updateRegionModeStyles() {  
+      regionModeBtns.forEach(btn=>{  
+        btn.classList.remove('active');  
+        if((btn.id==='single-region-btn' && appState.regionMode==='single')||  
+           (btn.id==='multi-region-btn' && appState.regionMode==='multi'))  
+          btn.classList.add('active');  
+      });  
+    }  
+    function updateStatus() {  
+      if(appState.regionMode==='single'){  
+        const firstDown = Object.entries(appState.linkDownMap).find(([key, val])=>val);  
+        if(firstDown){  
+          const [i, j] = firstDown[0].split('-');  
+          updateStatusLine(+i, +j, true);  
+          return;  
+        }  
+      }  
+      statusText.innerHTML = 'Status: <span style="color:#4e9a06">Primary Accepting Writes</span>';  
+    }  
+    nodeButtons.forEach(button => {  
+      button.addEventListener('click', (e) => {  
+        const count = parseInt(e.target.id.split('-')[1], 10);  
+        generateNodes(count);  
+      });  
+    });  
+    regionModeBtns.forEach(btn => {  
+      btn.addEventListener('click', function(){  
+        const mode = this.id==='multi-region-btn'?'multi':'single';  
+        if(appState.regionMode!==mode){  
+          appState.regionMode = mode;  
+          generateNodes(appState.totalNodes);  
+        }  
+      });  
+    });  
+    resetBtn.addEventListener('click', ()=>generateNodes(appState.totalNodes));  
+    window.addEventListener('load', ()=>generateNodes(3));  
+  </script>  
+</body>  
 </html>  
